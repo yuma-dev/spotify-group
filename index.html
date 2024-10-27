@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Group Session</title>
+    <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div id="app">
+        <div id="loading" class="screen">
+            <div class="spinner"></div>
+            <p>Connecting to group session...</p>
+        </div>
+        
+        <div id="error" class="screen hidden">
+            <h1>Error</h1>
+            <p id="error-message"></p>
+            <button onclick="window.location.reload()">Try Again</button>
+        </div>
+
+        <div id="success" class="screen hidden">
+            <h1>Successfully Connected!</h1>
+            <p>You can close this window and return to the app.</p>
+        </div>
+    </div>
+    <script src="config.js"></script>
+    <script src="session.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>
