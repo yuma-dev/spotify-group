@@ -10,7 +10,7 @@
     <div id="app">
         <div id="loading" class="screen">
             <div class="spinner"></div>
-            <p>Connecting to group session...</p>
+            <p>Connecting to Spotify...</p>
         </div>
         
         <div id="error" class="screen hidden">
@@ -19,13 +19,107 @@
             <button onclick="window.location.reload()">Try Again</button>
         </div>
 
+        <div id="auth" class="screen hidden">
+            <h1>Join Group Session</h1>
+            <p>Click below to connect your Spotify account</p>
+            <button id="auth-button">Connect Spotify</button>
+        </div>
+
         <div id="success" class="screen hidden">
             <h1>Successfully Connected!</h1>
-            <p>You can close this window and return to the app.</p>
+            <p>Here's your friend code - send this to your friend:</p>
+            <div class="code-container">
+                <code id="friend-code"></code>
+                <button id="copy-code">Copy Code</button>
+            </div>
+            <p class="note">After sending the code, you can close this window.</p>
         </div>
     </div>
-    <script src="config.js"></script>
-    <script src="session.js"></script>
-    <script src="auth.js"></script>
+    <script>
+        const config = {
+            clientId: 'YOUR_CLIENT_ID', // Replace with your Spotify Client ID
+            redirectUri: window.location.origin + window.location.pathname,
+            scopes: [
+                'user-read-private',
+                'user-read-email',
+                'user-library-read',
+                'user-top-read',
+                'user-read-recently-played'
+            ].join(' ')
+        };
+
+        // Spotify Authorization Flow
+        async function handleAuth() {
+            const params = new URLSearchParams({
+                client_id: config.clientId,
+                response_type: 'code',
+                redirect_uri: config.redirectUri,
+                scope: config.scopes,
+                state: localStorage.getItem('sessionData') // Pass session data as state
+            });
+
+            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        }
+
+        // Handle the Spotify callback
+        async function handleCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state'); // Original session data
+
+            if (code) {
+                try {
+                    // Generate a unique code combining session data and authorization code
+                    const friendCode = btoa(JSON.stringify({
+                        auth: code,
+                        session: state,
+                        timestamp: Date.now()
+                    }));
+
+                    // Show the success screen with the code
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('success').classList.remove('hidden');
+                    document.getElementById('friend-code').textContent = friendCode;
+
+                    // Add copy button functionality
+                    document.getElementById('copy-code').addEventListener('click', () => {
+                        navigator.clipboard.writeText(friendCode);
+                        document.getElementById('copy-code').textContent = 'Copied!';
+                        setTimeout(() => {
+                            document.getElementById('copy-code').textContent = 'Copy Code';
+                        }, 2000);
+                    });
+                } catch (error) {
+                    showError('Failed to process authorization');
+                }
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+            document.getElementById('error-message').textContent = message;
+        }
+
+        // Initial load handler
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.has('session')) {
+                // Store session data and show auth screen
+                localStorage.setItem('sessionData', urlParams.get('session'));
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('auth').classList.remove('hidden');
+                
+                // Add click handler for auth button
+                document.getElementById('auth-button').addEventListener('click', handleAuth);
+            } else if (urlParams.has('code')) {
+                // Handle Spotify callback
+                handleCallback();
+            } else {
+                showError('Invalid invitation link');
+            }
+        });
+    </script>
 </body>
 </html>
