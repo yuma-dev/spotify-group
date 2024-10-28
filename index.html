@@ -35,78 +35,117 @@
             <p class="note">After sending the code, you can close this window.</p>
         </div>
     </div>
-    <script>
-    const REDIRECT_URI = 'https://yuma-dev.github.io/spotify-group';
-    const CLIENT_ID = 'bb39de3fd45d476880f0373663e4a751';
+<script>
+const REDIRECT_URI = 'https://yuma-dev.github.io/spotify-group';
+const CLIENT_ID = 'bb39de3fd45d476880f0373663e4a751';
+
+function showScreen(screenId) {
+    // Hide all screens
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.add('hidden');
+    });
+    // Show requested screen
+    document.querySelector(`#${screenId}`).classList.remove('hidden');
+}
+
+async function handleCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log('URL Parameters:', Object.fromEntries(urlParams.entries()));
     
-    async function handleCallback() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const sessionData = urlParams.get('session');
+    const code = urlParams.get('code');
+    const sessionData = urlParams.get('session') || urlParams.get('state');
+    
+    console.log('Code:', code);
+    console.log('Session Data:', sessionData);
+
+    if (code && sessionData) {
+        console.log('Have both code and session data, creating friend code');
+        // Create friend code
+        const friendCode = btoa(JSON.stringify({
+            auth: code,
+            session: sessionData,
+            timestamp: Date.now(),
+            redirect_uri: REDIRECT_URI
+        }));
+
+        // Show success screen with the code
+        showScreen('success');
         
-        if (code && sessionData) {
-            // Create friend code
-            const friendCode = btoa(JSON.stringify({
-                auth: code,
-                session: sessionData,
-                timestamp: Date.now(),
-                redirect_uri: REDIRECT_URI  // Add this line
-            }));
-    
-            // Show success screen with the code
-            document.querySelector('#loading').classList.add('hidden');
-            document.querySelector('#success').classList.remove('hidden');
+        const codeContainer = document.querySelector('.code-container');
+        // Clear any existing code
+        while (codeContainer.firstChild) {
+            codeContainer.firstChild.remove();
+        }
+        
+        const codeElement = document.createElement('code');
+        codeElement.textContent = friendCode;
+        codeContainer.appendChild(codeElement);
+        
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy Code';
+        copyButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(friendCode);
+            copyButton.textContent = 'Copied!';
+            setTimeout(() => {
+                copyButton.textContent = 'Copy Code';
+            }, 2000);
+        });
+        codeContainer.appendChild(copyButton);
+    } else if (sessionData) {
+        console.log('Have session data, showing auth screen');
+        // Show auth screen
+        showScreen('auth');
+        
+        // Add connect button handler
+        const authButton = document.querySelector('#auth button');
+        authButton.addEventListener('click', () => {
+            const scopes = [
+                'user-read-private',
+                'user-read-email',
+                'user-read-currently-playing',
+                'user-read-recently-played',
+                'user-top-read',
+                'user-follow-read',
+                'user-library-read',
+                'user-modify-playback-state',
+                'user-read-playback-state',
+                'streaming',
+                'playlist-read-private',
+                'playlist-read-collaborative'
+            ].join(' ');
             
-            const codeContainer = document.querySelector('.code-container');
-            const codeElement = document.createElement('code');
-            codeElement.textContent = friendCode;
-            codeContainer.insertBefore(codeElement, codeContainer.firstChild);
+            const authUrl = new URL('https://accounts.spotify.com/authorize');
+            authUrl.searchParams.append('client_id', CLIENT_ID);
+            authUrl.searchParams.append('response_type', 'code');
+            authUrl.searchParams.append('redirect_uri', REDIRECT_URI);
+            authUrl.searchParams.append('state', sessionData);
+            authUrl.searchParams.append('scope', scopes);
             
-            // Add copy functionality
-            const copyButton = codeContainer.querySelector('button');
-            copyButton.addEventListener('click', () => {
-                navigator.clipboard.writeText(friendCode);
-                copyButton.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyButton.textContent = 'Copy Code';
-                }, 2000);
-            });
-        } else if (sessionData) {
-            // Show auth screen
-            document.querySelector('#loading').classList.add('hidden');
-            document.querySelector('#auth').classList.remove('hidden');
-            
-            // Add connect button handler
-            document.querySelector('#auth button').addEventListener('click', () => {
-                const scopes = [
-                    'user-read-private',
-                    'user-read-email',
-                    'user-read-currently-playing',
-                    'user-read-recently-played',
-                    'user-top-read',
-                    'user-follow-read',
-                    'user-library-read',
-                    'user-modify-playback-state',
-                    'user-read-playback-state',
-                    'streaming',
-                    'playlist-read-private',
-                    'playlist-read-collaborative'
-                ].join(' ');
-                
-                const state = sessionData;
-                const authUrl = new URL('https://accounts.spotify.com/authorize');
-                authUrl.searchParams.append('client_id', CLIENT_ID);
-                authUrl.searchParams.append('response_type', 'code');
-                authUrl.searchParams.append('redirect_uri', REDIRECT_URI);
-                authUrl.searchParams.append('state', state);
-                authUrl.searchParams.append('scope', scopes);
-                
-                window.location.href = authUrl.toString();
+            console.log('Redirecting to auth URL:', authUrl.toString());
+            window.location.href = authUrl.toString();
+        });
+    } else {
+        console.log('No valid parameters found, showing error');
+        showScreen('error');
+        
+        // Add retry handler
+        const retryButton = document.querySelector('#error button');
+        if (retryButton) {
+            retryButton.addEventListener('click', () => {
+                window.location.reload();
             });
         }
     }
-    
-    window.addEventListener('load', handleCallback);
-    </script>
+}
+
+// Start the flow when page loads
+window.addEventListener('load', () => {
+    console.log('Page loaded, starting callback handler');
+    handleCallback().catch(error => {
+        console.error('Error in callback handler:', error);
+        showScreen('error');
+    });
+});
+</script>
 </body>
 </html>
