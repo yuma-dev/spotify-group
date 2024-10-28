@@ -38,7 +38,7 @@
     <script>
         const config = {
             clientId: 'bb39de3fd45d476880f0373663e4a751',
-            redirectUri: window.location.origin + window.location.pathname + 'callback',
+            redirectUri: window.location.origin + window.location.pathname,
             scopes: [
                 'user-read-private',
                 'user-read-email',
@@ -62,36 +62,31 @@
         }
 
         // Handle the Spotify callback
-        async function handleCallback() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const state = urlParams.get('state'); // Original session data
+        async function handleCallback(code, state) {
+            try {
+                // Generate a unique code combining session data and authorization code
+                const friendCode = btoa(JSON.stringify({
+                    auth: code,
+                    session: state,
+                    timestamp: Date.now()
+                }));
 
-            if (code) {
-                try {
-                    // Generate a unique code combining session data and authorization code
-                    const friendCode = btoa(JSON.stringify({
-                        auth: code,
-                        session: state,
-                        timestamp: Date.now()
-                    }));
+                // Show the success screen with the code
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('success').classList.remove('hidden');
+                document.getElementById('friend-code').textContent = friendCode;
 
-                    // Show the success screen with the code
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('success').classList.remove('hidden');
-                    document.getElementById('friend-code').textContent = friendCode;
-
-                    // Add copy button functionality
-                    document.getElementById('copy-code').addEventListener('click', () => {
-                        navigator.clipboard.writeText(friendCode);
+                // Add copy button functionality
+                document.getElementById('copy-code').addEventListener('click', () => {
+                    navigator.clipboard.writeText(friendCode).then(() => {
                         document.getElementById('copy-code').textContent = 'Copied!';
                         setTimeout(() => {
                             document.getElementById('copy-code').textContent = 'Copy Code';
                         }, 2000);
                     });
-                } catch (error) {
-                    showError('Failed to process authorization');
-                }
+                });
+            } catch (error) {
+                showError('Failed to process authorization');
             }
         }
 
@@ -105,7 +100,12 @@
         window.addEventListener('load', () => {
             const urlParams = new URLSearchParams(window.location.search);
             
-            if (urlParams.has('session')) {
+            if (urlParams.has('code')) {
+                // Handle Spotify callback
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
+                handleCallback(code, state);
+            } else if (urlParams.has('session')) {
                 // Store session data and show auth screen
                 localStorage.setItem('sessionData', urlParams.get('session'));
                 document.getElementById('loading').classList.add('hidden');
@@ -113,9 +113,6 @@
                 
                 // Add click handler for auth button
                 document.getElementById('auth-button').addEventListener('click', handleAuth);
-            } else if (urlParams.has('code')) {
-                // Handle Spotify callback
-                handleCallback();
             } else {
                 showError('Invalid invitation link');
             }
