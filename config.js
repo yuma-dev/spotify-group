@@ -1,5 +1,5 @@
 const config = {
-    clientId: '51092626205e4fac987da217409b5b25',
+    clientId: 'bb39de3fd45d476880f0373663e4a751',
     redirectUri: window.location.origin + window.location.pathname,
     scopes: [
         'user-read-private',
