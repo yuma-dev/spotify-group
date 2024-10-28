@@ -36,39 +36,22 @@
         </div>
     </div>
     <script>
-
     const REDIRECT_URI = 'https://yuma-dev.github.io/spotify-group';
     const CLIENT_ID = 'bb39de3fd45d476880f0373663e4a751';
     
     async function handleCallback() {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
-        const state = urlParams.get('state'); // From Spotify callback
-        const session = urlParams.get('session'); // From initial invite link
+        const sessionData = urlParams.get('session');
         
-        // Store session data if it's coming from the invite link
-        if (session) {
-            localStorage.setItem('pendingSession', session);
-        }
-    
-        // Get stored session data
-        const storedSession = localStorage.getItem('pendingSession');
-        
-        console.log('Code:', code);
-        console.log('State:', state);
-        console.log('Session:', session);
-        console.log('Stored Session:', storedSession);
-    
-        if (code && storedSession) {
-            // We have both the auth code and session data - create friend code
+        if (code && sessionData) {
+            // Create friend code
             const friendCode = btoa(JSON.stringify({
                 auth: code,
-                session: storedSession,
-                timestamp: Date.now()
+                session: sessionData,
+                timestamp: Date.now(),
+                redirect_uri: REDIRECT_URI  // Add this line
             }));
-    
-            // Clear stored session since we don't need it anymore
-            localStorage.removeItem('pendingSession');
     
             // Show success screen with the code
             document.querySelector('#loading').classList.add('hidden');
@@ -88,8 +71,8 @@
                     copyButton.textContent = 'Copy Code';
                 }, 2000);
             });
-        } else if (storedSession || session) {
-            // Show auth screen - we have session data but need Spotify auth
+        } else if (sessionData) {
+            // Show auth screen
             document.querySelector('#loading').classList.add('hidden');
             document.querySelector('#auth').classList.remove('hidden');
             
@@ -107,25 +90,23 @@
                     'user-read-playback-state',
                     'streaming',
                     'playlist-read-private',
-                    'playlist-read-collaborative',
-                    'user-library-read'
-                ];
+                    'playlist-read-collaborative'
+                ].join(' ');
                 
-                const sessionToUse = storedSession || session;
-                const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scopes.join(' '))}&state=${sessionToUse}`;
-                window.location.href = authUrl;
+                const state = sessionData;
+                const authUrl = new URL('https://accounts.spotify.com/authorize');
+                authUrl.searchParams.append('client_id', CLIENT_ID);
+                authUrl.searchParams.append('response_type', 'code');
+                authUrl.searchParams.append('redirect_uri', REDIRECT_URI);
+                authUrl.searchParams.append('state', state);
+                authUrl.searchParams.append('scope', scopes);
+                
+                window.location.href = authUrl.toString();
             });
-        } else {
-            // Show error screen - we don't have session data
-            document.querySelector('#loading').classList.add('hidden');
-            document.querySelector('#error').classList.remove('hidden');
-            console.error('No session data available');
         }
     }
     
-    // Start the flow when page loads
     window.addEventListener('load', handleCallback);
-
     </script>
 </body>
 </html>
