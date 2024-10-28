@@ -36,87 +36,68 @@
         </div>
     </div>
     <script>
-        const config = {
-            clientId: 'bb39de3fd45d476880f0373663e4a751',
-            redirectUri: window.location.origin + window.location.pathname,
-            scopes: [
-                'user-read-private',
-                'user-read-email',
-                'user-library-read',
-                'user-top-read',
-                'user-read-recently-played'
-            ].join(' ')
-        };
-
-        // Spotify Authorization Flow
-        async function handleAuth() {
-            const params = new URLSearchParams({
-                client_id: config.clientId,
-                response_type: 'code',
-                redirect_uri: config.redirectUri,
-                scope: config.scopes,
-                state: localStorage.getItem('sessionData') // Pass session data as state
-            });
-
-            window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
-        }
-
-        // Handle the Spotify callback
-        async function handleCallback(code, state) {
-            try {
-                // Generate a unique code combining session data and authorization code
-                const friendCode = btoa(JSON.stringify({
-                    auth: code,
-                    session: state,
-                    timestamp: Date.now()
-                }));
-
-                // Show the success screen with the code
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('success').classList.remove('hidden');
-                document.getElementById('friend-code').textContent = friendCode;
-
-                // Add copy button functionality
-                document.getElementById('copy-code').addEventListener('click', () => {
-                    navigator.clipboard.writeText(friendCode).then(() => {
-                        document.getElementById('copy-code').textContent = 'Copied!';
-                        setTimeout(() => {
-                            document.getElementById('copy-code').textContent = 'Copy Code';
-                        }, 2000);
-                    });
-                });
-            } catch (error) {
-                showError('Failed to process authorization');
-            }
-        }
-
-        function showError(message) {
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('error').classList.remove('hidden');
-            document.getElementById('error-message').textContent = message;
-        }
-
-        // Initial load handler
-        window.addEventListener('load', () => {
-            const urlParams = new URLSearchParams(window.location.search);
+    const REDIRECT_URI = 'https://yuma-dev.github.io/spotify-group/callback';
+    const CLIENT_ID = 'bb39de3fd45d476880f0373663e4a751';
+    
+    async function handleCallback() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const sessionData = urlParams.get('session');
+        
+        if (code && sessionData) {
+            // Create friend code
+            const friendCode = btoa(JSON.stringify({
+                auth: code,
+                session: sessionData,
+                timestamp: Date.now()
+            }));
+    
+            // Show success screen with the code
+            document.querySelector('#loading').classList.add('hidden');
+            document.querySelector('#success').classList.remove('hidden');
             
-            if (urlParams.has('code')) {
-                // Handle Spotify callback
-                const code = urlParams.get('code');
-                const state = urlParams.get('state');
-                handleCallback(code, state);
-            } else if (urlParams.has('session')) {
-                // Store session data and show auth screen
-                localStorage.setItem('sessionData', urlParams.get('session'));
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('auth').classList.remove('hidden');
+            const codeContainer = document.querySelector('.code-container');
+            const codeElement = document.createElement('code');
+            codeElement.textContent = friendCode;
+            codeContainer.insertBefore(codeElement, codeContainer.firstChild);
+            
+            // Add copy functionality
+            const copyButton = codeContainer.querySelector('button');
+            copyButton.addEventListener('click', () => {
+                navigator.clipboard.writeText(friendCode);
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy Code';
+                }, 2000);
+            });
+        } else {
+            // Show auth screen
+            document.querySelector('#loading').classList.add('hidden');
+            document.querySelector('#auth').classList.remove('hidden');
+            
+            // Add connect button handler
+            document.querySelector('#auth button').addEventListener('click', () => {
+                const scopes = [
+                    'user-read-private',
+                    'user-read-email',
+                    'user-read-currently-playing',
+                    'user-read-recently-played',
+                    'user-top-read',
+                    'user-follow-read',
+                    'user-library-read',
+                    'user-modify-playback-state',
+                    'user-read-playback-state',
+                    'streaming'
+                ];
                 
-                // Add click handler for auth button
-                document.getElementById('auth-button').addEventListener('click', handleAuth);
-            } else {
-                showError('Invalid invitation link');
-            }
-        });
+                const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scopes.join(' '))}&state=${sessionData}`;
+                window.location.href = authUrl;
+            });
+        }
+    }
+    
+    // Start the flow when page loads
+    window.addEventListener('load', handleCallback);
     </script>
 </body>
 </html>
